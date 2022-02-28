@@ -15,7 +15,7 @@
     name: rtpapp
     uid: 1000
     groups: appgrp
-    password: "{{ 'Yunjikeji#123' | password_hash('sha512') }}"
+    password: "{{ 'Qwer#123' | password_hash('sha512') }}"
     shell: /bin/bash
     home: /userhome/rtpapp
     expires: -1
