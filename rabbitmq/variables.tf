@@ -97,7 +97,7 @@ variable "osVersion" {
 variable "mediaLibAddress" {
     description = "介质库地址"
     type = string
-    default = "10.0.0.4:8000"
+    default = "127.0.0.1:8000"
 }
 
 variable "servicePort" {
