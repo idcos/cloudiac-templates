@@ -10,14 +10,14 @@
     gid: 1000
     state: present
 
-- name: create user rtpapp
+- name: create user idcos
   user:
-    name: rtpapp
+    name: idcos
     uid: 1000
     groups: appgrp
-    password: "{{ 'Qwer#123' | password_hash('sha512') }}"
+    password: "{{ 'idcospassword' | password_hash('sha512') }}"
     shell: /bin/bash
-    home: /userhome/rtpapp
+    home: /userhome/idcos
     expires: -1
 
 - name: mkdir_redis_dir
@@ -26,7 +26,7 @@
     state: directory
     recurse: yes
     group: appgrp
-    owner: rtpapp
+    owner: idcos
     mode: 0755
   loop:
     - "{{ REDIS_DIR }}"
@@ -123,14 +123,14 @@
     state: directory
     recurse: yes
     group: appgrp
-    owner: rtpapp
+    owner: idcos
     mode: 0755
 
 - name: mv redis version dir
   copy:
     src: "{{ REDIS_DIR }}/redis-{{ redis_version }}/"
     dest: "{{ REDIS_DIR }}/redis/"
-    owner: rtpapp
+    owner: idcos
     group: appgrp
     mode: 0755
     remote_src: yes
@@ -162,9 +162,9 @@
     state: directory
     recurse: yes
     group: appgrp
-    owner: rtpapp
+    owner: idcos
     mode: 0755
 
 - name: start redis service
-  become_user: rtpapp
+  become_user: idcos
   shell: "/usr/bin/redis-server {{ REDIS_DIR }}/redis/redis.conf"
