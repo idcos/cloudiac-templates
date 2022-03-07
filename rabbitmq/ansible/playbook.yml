@@ -1,0 +1,96 @@
+---
+- hosts: RabbitMQ
+  vars:
+    mediaName: "rabbitmq{{ softVersion }}_{{ osType }}{{ osVersion }}_dep"
+    installDir: "/opt/rabbitmq"
+  remote_user: root
+  tasks:
+    # 安装RabbitMQ
+    - name: install the Development Tools
+      yum:
+        name: "@Development Tools"
+        state: present
+
+    - name: create group rabbitmq
+      group:
+        name: rabbitmq
+        gid: 1000
+        state: present
+
+    - name: create user rabbitmq
+      user:
+        name: rabbitmq
+        uid: 1000
+        groups: rabbitmq
+        password: "{{ 'idcospassword' | password_hash('sha512') }}"
+        shell: /bin/bash
+        home: /userhome/rabbitmq
+        expires: -1
+
+    - name: create download package dir
+      file:
+        path: "{{ installDir }}"
+        state: directory
+        recurse: yes
+        group: rabbitmq
+        owner: rabbitmq
+        mode: 0755
+
+    - name: download package
+      get_url:
+        url: "http://{{ mediaLibAddress }}/soft/rabbitmq/{{ mediaName }}.tar.gz"
+        dest: "{{ installDir }}"
+        mode: 0644
+        force: yes
+        validate_certs: no
+    - name: unzip package
+      unarchive: 
+        src: "{{ installDir }}/{{ mediaName }}.tar.gz"
+        dest: "{{ installDir }}"
+        remote_src: yes
+    - name: find all install rpm
+      find:
+        paths: "{{ installDir }}/{{ mediaName }}"
+        patterns: "*.rpm"
+      register: rpm_result
+    - name: execute install
+      yum:
+        name: "{{ item.path }}"
+        state: present
+      with_items: "{{ rpm_result.files }}"
+    
+    # 配置RabbitMQ
+    - name: enable rabbitmq management
+      shell: "rabbitmq-plugins enable rabbitmq_management"
+
+    - name: modify RabbitMQ config
+      lineinfile:
+        path: /etc/rabbitmq/rabbitmq.config
+        regexp: "{{ item.src }}"
+        line: "{{ item.dest }}"
+        backup: yes
+      loop:
+        - { src: '[\s\S]*%% \{tcp_listeners, \[5672\]\},', dest: '   {tcp_listeners, [{{ servicePort }}]},' }
+        - { src: '[\s\S]*%% \{listener, \[\{port,     12345\},', dest: '   {listener, [{port,     {{ webPort }} }]}' }
+        - { src: '[\s\S]*%% \{loopback_users, \[\]\}', dest: '   {loopback_users, []}'}
+    
+    - name: enable start on boot
+      shell: "systemctl enable rabbitmq-server"
+
+    - name: start rabbitmq
+      shell: "systemctl restart rabbitmq-server"
+
+    - name: rabbitmq cluster status
+      shell: "rabbitmqctl cluster_status"
+      register: result
+
+    - name: add admin user
+      shell: "rabbitmqctl add_user {{ adminUsername }}  {{ adminPassword }}"
+    - name: set admin user tags
+      shell: "rabbitmqctl set_user_tags {{ adminUsername }} administrator"
+    - name: set admin user permissions
+      shell: "rabbitmqctl set_permissions -p / {{ adminUsername }} \".*\" \".*\" \".*\""
+
+    - name: config nodes
+      shell: "rabbitmqctl stop_app ;rabbitmqctl join_cluster --ram rabbit@vm01 ;rabbitmqctl start_app"
+      when: ansible_hostname != "rabbitMQ01"
